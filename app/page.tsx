@@ -81,7 +81,7 @@ export default function Home() {
     if (skins.length === 0) return;
 
     setIsOpening(true);
-    const duration = 1000;
+    const duration = 3000;
 
     let count = 0;
     const interval = setInterval(() => {
@@ -113,41 +113,42 @@ export default function Home() {
         <h1 className="text-5xl font-bold text-white text-center">CS2 Case Opening</h1>
         
         <div
-          className="w-120 h-120 rounded-lg border-4 border-gray-700 flex flex-col bg-opacity-20 items-center justify-center overflow-hidden shrink-0"
-          style={openedSkin ? { backgroundColor: openedSkin.getBackgroundColor() } : {}}
-        >
-          {/* Skin Image */}
-          <div className="flex items-center justify-center flex-1">
+            className="w-140 h-140 rounded-lg border-4 border-gray-700 flex items-center justify-center overflow-hidden relative shrink-0"
+            style={openedSkin ? { backgroundColor: openedSkin.getBackgroundColor() } : {}}
+          >
+            {/* Skin Image */}
             {openedSkin?.image ? (
               <img
                 src={openedSkin.image}
                 alt={openedSkin.getDisplayName()}
-                className="w-full h-full object-contain"
+                className="w-180 h-180 object-contain absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
               />
             ) : (
-              <div className="text-gray-500">No image</div>
+              <div className="text-gray-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                No image
+              </div>
             )}
-          </div>
 
-          {/* Skin Info */}
-          <div className="w-full">
-            {openedSkin ? (
-              <div className="text-center space-y-4 w-full">
+            {/* Skin Info */}
+            {openedSkin && (
+              <div className="absolute bottom-4 w-full text-center px-2">
                 <p
-                  className="text-2xl font-bold wrap-break-word"
+                  className="text-lg font-semibold truncate"
                   style={{ color: openedSkin.getRarityColor() }}
                 >
                   {openedSkin.getDisplayName()}
                 </p>
                 <p className="text-sm text-gray-400">{openedSkin.rarity.name}</p>
               </div>
-            ) : (
-              <div className="text-gray-500 text-center">
+            )}
+
+            {!openedSkin && (
+              <div className="absolute bottom-4 w-full text-center text-gray-500 px-2">
                 Click "Open Case" to reveal a random skin!
               </div>
             )}
           </div>
-        </div>
+
 
         <button
           onClick={openCase}
