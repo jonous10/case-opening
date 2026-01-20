@@ -1,215 +1,192 @@
-'use client';
+"use client";
 
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState, useRef } from "react";
 
-/* =======================
-   CONFIG
-======================= */
-const REEL_ITEM_WIDTH = 320;
-const REEL_ITEM_GAP = 8;
-const REEL_ITEM_TOTAL = REEL_ITEM_WIDTH + REEL_ITEM_GAP;
-
-const REEL_ITEMS_COUNT = 50;      // number of items in the reel
-const WINNING_ITEM_INDEX = 30;    // index that will stop under marker
-
-const REEL_INITIAL_SPEED = 40;    // starting px/frame speed
-const REEL_DECELERATION = 0.985;  // deceleration multiplier per frame
-
-const STOP_THRESHOLD = 1;         // px distance threshold for stopping
-const MIN_SPEED = 0.3;            // px/frame minimum speed before stopping
-
-/* =======================
-   TYPES
-======================= */
-interface Rarity {
-  id: string;
-  name: string;
-  color: string;
-}
-
-interface Skin {
+class Skin {
   name: string;
   image: string;
-  rarity: Rarity;
+  rarity: {
+    id: string;
+    name: string;
+    color: string;
+  };
+  weapon?: { name: string };
+  category?: { id: string; name: string };
+
+  constructor(
+    name: string,
+    image: string,
+    rarity: { id: string; name: string; color: string },
+    weapon?: { name: string },
+    category?: { id: string; name: string }
+  ) {
+    this.name = name;
+    this.image = image;
+    this.rarity = rarity;
+    if (weapon) this.weapon = weapon;
+    if (category) this.category = category;
+  }
 }
 
-/* =======================
-   COMPONENT
-======================= */
-export default function Home() {
+export default function CS2CasePage() {
   const [skins, setSkins] = useState<Skin[]>([]);
-  const [reelItems, setReelItems] = useState<
-    { id: string; skin: Skin; x: number }[]
-  >([]);
-  const [finalSkin, setFinalSkin] = useState<Skin | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [reelSkins, setReelSkins] = useState<Skin[]>([]);
+  const [rolling, setRolling] = useState(false);
+  const [selectedSkin, setSelectedSkin] = useState<Skin | null>(null);
+  const reelRef = useRef<HTMLDivElement>(null);
 
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const anim = useRef({
-    spinning: false,
-    distance: 0,
-    target: 0,
-    speed: REEL_INITIAL_SPEED,
-    items: [] as { id: string; skin: Skin; index: number }[],
-    winner: null as Skin | null,
-  });
-
-  /* =======================
-     LOAD SKINS
-  ======================= */
-  useEffect(() => {
-    fetch(
-      'https://raw.githubusercontent.com/ByMykel/CSGO-API/main/public/api/en/skins.json'
-    )
-      .then((r) => r.json())
-      .then(setSkins)
-      .finally(() => setLoading(false));
-  }, []);
-
-  /* =======================
-     SPIN LOGIC
-  ======================= */
-  const spin = () => {
-    if (!skins.length || anim.current.spinning) return;
-
-    const a = anim.current;
-    a.spinning = true;
-    a.distance = 0;
-    a.speed = REEL_INITIAL_SPEED;
-    setFinalSkin(null);
-
-    // 🎯 Pick winner first
-    const winner = skins[Math.floor(Math.random() * skins.length)];
-    a.winner = winner;
-
-    // 🎰 Build reel
-    a.items = Array.from({ length: REEL_ITEMS_COUNT }, (_, i) => ({
-      id: `${Date.now()}-${i}`,
-      index: i,
-      skin:
-        i === WINNING_ITEM_INDEX
-          ? winner
-          : skins[Math.floor(Math.random() * skins.length)],
-    }));
-
-    // 📐 Calculate exact stopping distance
-    const containerWidth = containerRef.current?.offsetWidth ?? 900;
-    const centerX = containerWidth / 2;
-    a.target = WINNING_ITEM_INDEX * REEL_ITEM_TOTAL - centerX + REEL_ITEM_WIDTH / 2;
-
-    // 🎞 Animation loop (velocity + deceleration + threshold stop)
-    const animate = () => {
-      // Move the reel
-      a.distance += a.speed;
-
-      // Apply deceleration
-      a.speed *= REEL_DECELERATION;
-
-      const remaining = a.target - a.distance;
-
-      // Update reel items
-      setReelItems(
-        a.items.map((item) => ({
-          id: item.id,
-          skin: item.skin,
-          x: item.index * REEL_ITEM_TOTAL - a.distance,
-        }))
-      );
-
-      // Stop condition: close enough AND speed slow enough
-      if (Math.abs(remaining) > STOP_THRESHOLD || a.speed > MIN_SPEED) {
-        requestAnimationFrame(animate);
-      } else {
-        // Final snap to exact target
-        a.distance = a.target;
-
-        setReelItems(
-          a.items.map((item) => ({
-            id: item.id,
-            skin: item.skin,
-            x: item.index * REEL_ITEM_TOTAL - a.distance,
-          }))
-        );
-
-        setFinalSkin(a.winner);
-        a.spinning = false;
-      }
-    };
-
-    requestAnimationFrame(animate);
+  const rarityWeights: Record<string, number> = {
+    "Consumer": 79,
+    "Industrial": 15,
+    "Mil-Spec": 4,
+    "Restricted": 1,
+    "Classified": 0.25,
+    "Covert": .1, // Knifes
+    "Extraordinary": 0.001, // Gloves
   };
 
-  /* =======================
-     RENDER
-  ======================= */
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black text-white">
-        Loading skins...
-      </div>
+  function getRandomSkin(skins: Skin[]): Skin {
+    const totalWeight = skins.reduce(
+      (sum, skin) => sum + (rarityWeights[skin.rarity.name] || 1),
+      0
     );
+
+    let random = Math.random() * totalWeight;
+
+    for (const skin of skins) {
+      random -= rarityWeights[skin.rarity.name] || 1;
+      if (random <= 0) return skin;
+    }
+
+    return skins[skins.length - 1];
   }
 
+
+  // Fetch skins
+  useEffect(() => {
+    fetch(
+      "https://raw.githubusercontent.com/ByMykel/CSGO-API/main/public/api/en/skins.json"
+    )
+      .then((res) => res.json())
+      .then((data) => {
+        // Convert plain objects to Skin instances
+        const skinObjects = data.map(
+          (s: any) =>
+            new Skin(s.name, s.image, s.rarity, s.weapon ? s.weapon : undefined)
+        );
+        setSkins(skinObjects);
+      })
+      .catch((err) => console.error(err));
+  }, []);
+
+  const startRoll = () => {
+    if (rolling || skins.length === 0) return;
+
+    setRolling(true);
+    setSelectedSkin(null);
+
+    // Pick the winner
+    const winner = getRandomSkin(skins);
+    setSelectedSkin(winner);
+
+    // Build the reel
+    const reelLength = 30;
+    const reelArray: Skin[] = [];
+
+    // Filter out knives for reel items
+    const nonKnifeSkins = skins.filter(s => s.category?.name !== "Knives");
+
+    for (let i = 0; i < reelLength; i++) {
+      const skin = getRandomSkin(nonKnifeSkins);
+
+      reelArray.push(skin);
+    }
+
+    // Insert the winner so it aligns with the center indicator
+    const centerIndex = 10;
+    reelArray[centerIndex] = winner;
+    setReelSkins(reelArray);
+
+    // Reset position
+    if (reelRef.current) {
+      reelRef.current.style.transition = "none";
+      reelRef.current.style.transform = "translateY(0)";
+    }
+
+    // Animate reel
+    setTimeout(() => {
+      if (reelRef.current) {
+        reelRef.current.style.transition =
+          "transform 3s cubic-bezier(0.25, 1, 0.5, 1)";
+        reelRef.current.style.transform = `translateY(-${centerIndex * 82}px)`;
+      }
+    }, 50);
+
+    // End animation
+    setTimeout(() => {
+      setRolling(false);
+    }, 3050);
+  };
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-black text-white gap-8">
-      <h1 className="text-5xl font-bold">CS2 Skin Slider</h1>
-
-      {/* Reel container */}
-      <div
-        ref={containerRef}
-        className="relative w-full max-w-4xl h-80 overflow-hidden border-4 border-gray-700 bg-gray-950"
-      >
-        {/* Center marker */}
-        <div className="absolute left-1/2 top-0 bottom-0 w-1 bg-yellow-500 -translate-x-1/2 z-10" />
-
-        {/* Reel */}
-        <div className="absolute inset-0 flex items-center">
-          {reelItems.map((item) => (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-4">
+      <h1 className="text-3xl font-bold mb-6">CS2 Case Opener</h1>
+      <div className="relative w-48 h-64 overflow-hidden border-4 border-gray-700 rounded-lg mb-6">
+        <div ref={reelRef} className="flex flex-col items-center justify-start">
+          {reelSkins.map((skin, index) => (
             <div
-              key={item.id}
-              style={{
-                transform: `translateX(${item.x}px)`,
-                width: REEL_ITEM_WIDTH,
-              }}
-              className="flex-shrink-0 flex flex-col items-center gap-2"
+              key={index}
+              className="w-full h-20 flex items-center justify-center mb-2 p-2 rounded"
+              style={{ border: `2px solid ${skin.rarity.color}`,
+                        background: `${skin.rarity.color}` + 28}}
             >
               <img
-                src={item.skin.image}
-                className="h-32 w-32 object-contain"
-                alt={item.skin.name}
+                src={skin.image}
+                alt={skin.name}
+                className="h-16 object-contain mr-2"
               />
-              <p className="text-xs text-center px-2">{item.skin.name}</p>
+              <span className="text-sm">{skin.name}</span>
             </div>
           ))}
         </div>
-
-        {/* Result overlay */}
-        {finalSkin && (
-          <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center">
-            <img
-              src={finalSkin.image}
-              className="h-56 w-56 object-contain"
-              alt={finalSkin.name}
-            />
-            <p
-              className="text-3xl font-bold mt-4"
-              style={{ color: finalSkin.rarity.color }}
-            >
-              {finalSkin.name}
-            </p>
-            <p className="text-gray-400 mt-1">{finalSkin.rarity.name}</p>
-          </div>
-        )}
+        {/* Center indicator */}
+        <div className="absolute top-1/2 left-0 w-full h-20 -translate-y-1/2 border-2 border-yellow-400 pointer-events-none"></div>
       </div>
-
       <button
-        onClick={spin}
-        disabled={anim.current.spinning}
-        className="px-10 py-4 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 rounded-lg text-xl font-bold"
+        onClick={startRoll}
+        disabled={rolling}
+        className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-2 px-6 rounded"
       >
-        {anim.current.spinning ? 'Spinning…' : 'Spin'}
+        {rolling ? "Rolling..." : "Open Case"}
       </button>
+
+      {selectedSkin && !rolling && (
+        <div className="mt-6 text-center">
+          <h2 className="text-xl font-bold">You won:</h2>
+          <div
+            className="inline-flex items-center mt-2 p-4 border-4 rounded"
+            style={{ borderColor: selectedSkin.rarity.color }}
+          >
+            <img
+              src={selectedSkin.image}
+              alt={selectedSkin.name}
+              className="h-24 object-contain mr-4"
+            />
+            <div className="text-left">
+              <div className="font-bold">{selectedSkin.name}</div>
+              {selectedSkin.weapon && (
+                <div className="text-sm">{selectedSkin.weapon.name}</div>
+              )}
+              <div
+                className="font-semibold"
+                style={{ color: selectedSkin.rarity.color }}
+              >
+                {selectedSkin.rarity.name}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
