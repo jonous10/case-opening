@@ -53,24 +53,55 @@ export default function CS2CasePage() {
     "Mil-Spec": 4,
     "Restricted": 1,
     "Classified": 0.25,
-    "Covert": 0.1,
+    "Covert": 10,
     "Extraordinary": 0.001,
   };
 
+  // Separate weights for special categories
+  const categoryWeights: Record<string, number> = {
+    "Knives": 100,      // ~0.26% per knife (rarer than normal Covert)
+    "Gloves": 100,      // ~0.26% per glove (same as knives)
+  };
+
   function getRandomSkin(skins: Skin[]): Skin {
-    const totalWeight = skins.reduce(
+    // Separate skins by category
+    const knives = skins.filter(s => s.category?.id === "sfui_invpanel_filter_melee");
+    const gloves = skins.filter(s => s.category?.id === "sfui_invpanel_filter_gloves");
+    const regularSkins = skins.filter(s => 
+      s.category?.id !== "sfui_invpanel_filter_melee" && 
+      s.category?.id !== "sfui_invpanel_filter_gloves"
+    );
+
+    // Calculate total weight including special categories
+    const regularWeight = regularSkins.reduce(
       (sum, skin) => sum + (rarityWeights[skin.rarity.name] || 1),
       0
     );
+    const knifeWeight = knives.length > 0 ? categoryWeights["Knives"] : 0;
+    const gloveWeight = gloves.length > 0 ? categoryWeights["Gloves"] : 0;
+    const totalWeight = regularWeight + knifeWeight + gloveWeight;
 
     let random = Math.random() * totalWeight;
 
-    for (const skin of skins) {
+    // Check if we hit a knife
+    if (knives.length > 0 && random <= knifeWeight) {
+      return knives[Math.floor(Math.random() * knives.length)];
+    }
+    random -= knifeWeight;
+
+    // Check if we hit gloves
+    if (gloves.length > 0 && random <= gloveWeight) {
+      return gloves[Math.floor(Math.random() * gloves.length)];
+    }
+    random -= gloveWeight;
+
+    // Otherwise, select from regular skins based on rarity
+    for (const skin of regularSkins) {
       random -= rarityWeights[skin.rarity.name] || 1;
       if (random <= 0) return skin;
     }
 
-    return skins[skins.length - 1];
+    return regularSkins[regularSkins.length - 1] || skins[0];
   }
 
   useEffect(() => {
