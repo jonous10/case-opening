@@ -44,7 +44,9 @@ export default function CS2CasePage() {
   const [selectedSkin, setSelectedSkin] = useState<Skin | null>(null);
   const [showReveal, setShowReveal] = useState(false);
   const reelRef = useRef<HTMLDivElement>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const tickAudioRef = useRef<HTMLAudioElement | null>(null);
+  const openAudioRef = useRef<HTMLAudioElement | null>(null);
+  const keyAudioRef = useRef<HTMLAudioElement | null>(null);
   const lastTickIndexRef = useRef<number>(-1);
 
   const rarityWeights: Record<string, number> = {
@@ -54,6 +56,8 @@ export default function CS2CasePage() {
     "Restricted": 1,
     "Classified": 0.25,
     "Covert": 1,
+
+
     "Extraordinary": 0.001,
   };
 
@@ -127,18 +131,23 @@ export default function CS2CasePage() {
     
     // Initialize audio element for tick sound
     // Replace '/tick.mp3' with your actual sound file path
-    audioRef.current = new Audio('/tick.mp3');
-    audioRef.current.volume = 0.3; // Adjust volume (0.0 to 1.0)
+    tickAudioRef.current = new Audio('/caseTick.mp3');
+    tickAudioRef.current.volume = 0.3; // Adjust volume (0.0 to 1.0)
+
+    openAudioRef.current = new Audio('/caseOpen.mp3');
+    openAudioRef.current.volume = 0.3; // Adjust volume (0.0 to 1.0)
+    
+    keyAudioRef.current = new Audio('/caseTick.mp3');
+    keyAudioRef.current.volume = 0.3; // Adjust volume (0.0 to 1.0)
   }, []);
 
   // Play tick sound
-  const playTickSound = () => {
+  const playSound = (audioRef: React.RefObject<HTMLAudioElement | null>) => {
     if (audioRef.current) {
       audioRef.current.currentTime = 0; // Reset to start for rapid plays
       audioRef.current.play().catch(err => console.log('Audio play failed:', err));
     }
   };
-
   // Monitor reel position and play tick sounds
   useEffect(() => {
     if (!rolling || !reelRef.current) return;
@@ -163,7 +172,7 @@ export default function CS2CasePage() {
 
       // Play sound when crossing into a new item
       if (currentCenterIndex !== lastTickIndexRef.current && currentCenterIndex >= 0) {
-        playTickSound();
+        playSound(tickAudioRef);
         lastTickIndexRef.current = currentCenterIndex;
       }
     }, 16); // ~60fps checking
@@ -239,6 +248,7 @@ export default function CS2CasePage() {
       // Show reveal animation after a brief delay
       setTimeout(() => {
         setShowReveal(true);
+      playSound(openAudioRef);
       }, 400);
     }, animationDuration + animationDelay);
   };
