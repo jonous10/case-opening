@@ -53,24 +53,29 @@ export default function CS2CasePage() {
     "Mil-Spec": 4,
     "Restricted": 1,
     "Classified": 0.25,
-    "Covert": 10,
+    "Covert": 1,
     "Extraordinary": 0.001,
   };
 
   // Separate weights for special categories
   const categoryWeights: Record<string, number> = {
-    "Knives": 100,      // ~0.26% per knife (rarer than normal Covert)
-    "Gloves": 100,      // ~0.26% per glove (same as knives)
+    "Knives": 26,      // ~0.26% per knife (rarer than normal Covert)
+    "Gloves": 26,      // ~0.26% per glove (same as knives)
   };
 
   function getRandomSkin(skins: Skin[]): Skin {
     // Separate skins by category
-    const knives = skins.filter(s => s.category?.id === "sfui_invpanel_filter_melee");
-    const gloves = skins.filter(s => s.category?.id === "sfui_invpanel_filter_gloves");
+    const knives = skins.filter(s => s.category?.name === "Knives");
+    const gloves = skins.filter(s => s.category?.name === "Gloves");
     const regularSkins = skins.filter(s => 
       s.category?.id !== "sfui_invpanel_filter_melee" && 
       s.category?.id !== "sfui_invpanel_filter_gloves"
     );
+
+    // Debug logging (remove after testing)
+    if (knives.length === 0) {
+      console.warn("No knives found in filter!");
+    }
 
     // Calculate total weight including special categories
     const regularWeight = regularSkins.reduce(
@@ -85,7 +90,9 @@ export default function CS2CasePage() {
 
     // Check if we hit a knife
     if (knives.length > 0 && random <= knifeWeight) {
-      return knives[Math.floor(Math.random() * knives.length)];
+      const selectedKnife = knives[Math.floor(Math.random() * knives.length)];
+      console.log("KNIFE DROPPED:", selectedKnife.name);
+      return selectedKnife;
     }
     random -= knifeWeight;
 
