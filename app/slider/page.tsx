@@ -49,39 +49,57 @@ export default function CS2CasePage() {
   const keyAudioRef = useRef<HTMLAudioElement | null>(null);
   const lastTickIndexRef = useRef<number>(-1);
 
-  const rarityWeights: Record<string, number> = {
-    "Consumer": 79,
-    "Industrial": 15,
-    "Mil-Spec": 4,
-    "Restricted": 1,
-    "Classified": 0.25,
-    "Covert": 1,
+  // Calculate rarity weights based on actual data distribution and realistic CS:GO probabilities
+  const calculateRarityWeights = (skins: Skin[]): Record<string, number> => {
+    // Count skins by rarity
+    const rarityCounts: Record<string, number> = {};
+    skins.forEach(skin => {
+      const rarity = skin.rarity.name;
+      rarityCounts[rarity] = (rarityCounts[rarity] || 0) + 1;
+    });
 
+    // Realistic CS:GO case opening probabilities (per item drop chance)
+    // These are based on actual CS:GO case distributions
+    // Note: Consumer and Industrial grades don't drop from cases
+    const baseProbabilities: Record<string, number> = {
+      "Mil-Spec Grade": 79.92,     // ~80% of drops (blue)
+      "Restricted": 15.98,         // ~16% of drops (purple)  
+      "Classified": 3.20,          // ~3.2% of drops (pink)
+      "Covert": 0.64,              // ~0.64% of drops (red)
+      "Extraordinary": 0.26,       // ~0.26% of drops (knives/gloves - yellow)
+      "Contraband": 0.01,          // ~0.01% of drops (extremely rare - orange)
+    };
 
-    "Extraordinary": 0.001,
+    // Calculate weights that account for both probability and item count
+    const weights: Record<string, number> = {};
+    Object.entries(rarityCounts).forEach(([rarity, count]) => {
+      const baseProb = baseProbabilities[rarity] || 1;
+      // Weight = base probability * (1 / sqrt(count)) to balance rarity with item variety
+      weights[rarity] = baseProb * Math.sqrt(1000 / count);
+    });
+
+    return weights;
   };
 
-  // Separate weights for special categories
+  // Category weights based on actual CS:GO case probabilities
+  // Knives and gloves replace the rarest items (Covert/Extraordinary slots)
+  // These should be very rare to match real CS:GO experience
   const categoryWeights: Record<string, number> = {
-    "Knives": 26,      // ~0.26% per knife (rarer than normal Covert)
-    "Gloves": 26,      // ~0.26% per glove (same as knives)
+    "Knives": 100,     // ~0.2% chance (extremely rare, like real knives)
+    "Gloves": 50,      // ~0.1% chance (even rarer than knives)
   };
 
   function getRandomSkin(skins: Skin[]): Skin {
-    // Separate skins by category
+    const rarityWeights = calculateRarityWeights(skins);
+    
     const knives = skins.filter(s => s.category?.name === "Knives");
     const gloves = skins.filter(s => s.category?.name === "Gloves");
     const regularSkins = skins.filter(s => 
-      s.category?.id !== "sfui_invpanel_filter_melee" && 
-      s.category?.id !== "sfui_invpanel_filter_gloves"
+      s.category?.name !== "Knives" && 
+      s.category?.name !== "Gloves"
     );
 
-    // Debug logging (remove after testing)
-    if (knives.length === 0) {
-      console.warn("No knives found in filter!");
-    }
-
-    // Calculate total weight including special categories
+    // Calculate total weight - knives and gloves use category weights only, regular skins use rarity weights
     const regularWeight = regularSkins.reduce(
       (sum, skin) => sum + (rarityWeights[skin.rarity.name] || 1),
       0
@@ -90,18 +108,21 @@ export default function CS2CasePage() {
     const gloveWeight = gloves.length > 0 ? categoryWeights["Gloves"] : 0;
     const totalWeight = regularWeight + knifeWeight + gloveWeight;
 
+    // Edge case: if total weight is 0, return random skin
+    if (totalWeight === 0) {
+      return skins[Math.floor(Math.random() * skins.length)];
+    }
+
     let random = Math.random() * totalWeight;
 
-    // Check if we hit a knife
-    if (knives.length > 0 && random <= knifeWeight) {
-      const selectedKnife = knives[Math.floor(Math.random() * knives.length)];
-      console.log("KNIFE DROPPED:", selectedKnife.name);
-      return selectedKnife;
+    // Check if we hit a knife (highest priority due to high category weight)
+    if (knives.length > 0 && random < knifeWeight) {
+      return knives[Math.floor(Math.random() * knives.length)];
     }
     random -= knifeWeight;
 
-    // Check if we hit gloves
-    if (gloves.length > 0 && random <= gloveWeight) {
+    // Check if we hit gloves (second priority)
+    if (gloves.length > 0 && random < gloveWeight) {
       return gloves[Math.floor(Math.random() * gloves.length)];
     }
     random -= gloveWeight;
@@ -111,7 +132,6 @@ export default function CS2CasePage() {
       random -= rarityWeights[skin.rarity.name] || 1;
       if (random <= 0) return skin;
     }
-
     return regularSkins[regularSkins.length - 1] || skins[0];
   }
 
@@ -125,29 +145,35 @@ export default function CS2CasePage() {
           (s: any) =>
             new Skin(s.name, s.image, s.rarity, s.weapon ? s.weapon : undefined, s.category)
         );
-        setSkins(skinObjects);
+
+        // Deduplicate skins by name to avoid repetitive items
+        const uniqueSkins = skinObjects.filter((skin: Skin, index: number, self: Skin[]) => 
+          index === self.findIndex((s) => s.name === skin.name)
+        );
+
+        setSkins(uniqueSkins);
       })
       .catch((err) => console.error(err));
     
     // Initialize audio element for tick sound
-    // Replace '/tick.mp3' with your actual sound file path
     tickAudioRef.current = new Audio('/caseTick.mp3');
-    tickAudioRef.current.volume = 0.3; // Adjust volume (0.0 to 1.0)
+    tickAudioRef.current.volume = 0.3;
 
     openAudioRef.current = new Audio('/caseOpen.mp3');
-    openAudioRef.current.volume = 0.3; // Adjust volume (0.0 to 1.0)
+    openAudioRef.current.volume = 0.3;
     
     keyAudioRef.current = new Audio('/caseTick.mp3');
-    keyAudioRef.current.volume = 0.3; // Adjust volume (0.0 to 1.0)
+    keyAudioRef.current.volume = 0.3;
   }, []);
 
   // Play tick sound
   const playSound = (audioRef: React.RefObject<HTMLAudioElement | null>) => {
     if (audioRef.current) {
-      audioRef.current.currentTime = 0; // Reset to start for rapid plays
+      audioRef.current.currentTime = 0;
       audioRef.current.play().catch(err => console.log('Audio play failed:', err));
     }
   };
+
   // Monitor reel position and play tick sounds
   useEffect(() => {
     if (!rolling || !reelRef.current) return;
@@ -155,27 +181,23 @@ export default function CS2CasePage() {
     const interval = setInterval(() => {
       if (!reelRef.current) return;
 
-      // Get current transform value
       const transform = window.getComputedStyle(reelRef.current).transform;
       if (transform === 'none') return;
 
-      // Parse translateX value
       const matrix = new DOMMatrix(transform);
       const translateX = Math.abs(matrix.m41);
 
-      // Calculate which item is currently at center
       const containerWidth = reelRef.current.offsetWidth || 800;
       const centerPosition = containerWidth / 2;
       const itemTotalWidth = itemWidth + itemGap;
       
       const currentCenterIndex = Math.floor((translateX + centerPosition) / itemTotalWidth);
 
-      // Play sound when crossing into a new item
       if (currentCenterIndex !== lastTickIndexRef.current && currentCenterIndex >= 0) {
         playSound(tickAudioRef);
         lastTickIndexRef.current = currentCenterIndex;
       }
-    }, 16); // ~60fps checking
+    }, 16);
 
     return () => clearInterval(interval);
   }, [rolling, itemWidth, itemGap]);
@@ -207,13 +229,11 @@ export default function CS2CasePage() {
     setRolling(true);
     setSelectedSkin(null);
     setShowReveal(false);
-    lastTickIndexRef.current = -1; // Reset tick counter
+    lastTickIndexRef.current = -1;
 
     const reelArray: Skin[] = [];
-    const nonKnifeSkins = skins.filter(s => s.category?.name !== "Knives");
-
     for (let i = 0; i < reelLength; i++) {
-      const skin = getRandomSkin(nonKnifeSkins);
+      const skin = getRandomSkin(skins);
       reelArray.push(skin);
     }
 
@@ -245,17 +265,15 @@ export default function CS2CasePage() {
       setSelectedSkin(actualWinner);
       setRolling(false);
       
-      // Show reveal animation after a brief delay
       setTimeout(() => {
         setShowReveal(true);
-      playSound(openAudioRef);
+        playSound(openAudioRef);
       }, 400);
     }, animationDuration + animationDelay);
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col items-center justify-center p-8 relative overflow-hidden">
-      {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 -left-1/4 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl animate-pulse" 
              style={{ animationDuration: '4s' }}></div>
@@ -263,7 +281,6 @@ export default function CS2CasePage() {
              style={{ animationDuration: '6s', animationDelay: '1s' }}></div>
       </div>
 
-      {/* Header - always visible */}
       <div className="relative z-20 text-center mb-8">
         <h1 className="text-6xl font-black bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-200 bg-clip-text text-transparent mb-3 tracking-tight"
             style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
@@ -273,9 +290,7 @@ export default function CS2CasePage() {
       </div>
 
       <div className="relative z-10 w-full max-w-5xl flex-1 flex flex-col items-center justify-center">
-        {/* Main content area */}
         <div className="relative w-full" style={{ minHeight: '400px' }}>
-          {/* Reel container - hides when showing reveal */}
           <div 
             className="transition-all duration-700 ease-out"
             style={{
@@ -308,7 +323,6 @@ export default function CS2CasePage() {
                 ))}
               </div>
               
-              {/* Center indicator line */}
               <div className="absolute left-1/2 top-0 bottom-0 w-1 -translate-x-1/2 pointer-events-none">
                 <div className="w-full h-full bg-gradient-to-b from-transparent via-amber-400 to-transparent opacity-80"></div>
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rotate-45 bg-amber-400 shadow-lg shadow-amber-400/50"></div>
@@ -316,7 +330,6 @@ export default function CS2CasePage() {
             </div>
           </div>
 
-          {/* Reveal card - shows on top when animation completes */}
           {selectedSkin && showReveal && (
             <div 
               className="absolute inset-0 flex items-center justify-center reveal-container"
@@ -359,7 +372,6 @@ export default function CS2CasePage() {
                   boxShadow: `0 0 60px ${selectedSkin.rarity.color}40, 0 0 100px ${selectedSkin.rarity.color}20, inset 0 0 40px ${selectedSkin.rarity.color}10`
                 }}
               >
-                {/* Glow effect */}
                 <div 
                   className="absolute inset-0 rounded-3xl glow-pulse pointer-events-none"
                   style={{
@@ -404,7 +416,6 @@ export default function CS2CasePage() {
           )}
         </div>
 
-        {/* Stats or info section */}
         {!showReveal && selectedSkin && !rolling && (
           <div className="mt-8 text-center fade-in-text">
             <style jsx>{`
@@ -430,7 +441,6 @@ export default function CS2CasePage() {
         )}
       </div>
 
-      {/* Action button - always visible and in same position */}
       <div className="relative z-20 mt-8 flex justify-center">
         <button
           onClick={startRoll}
@@ -465,7 +475,6 @@ export default function CS2CasePage() {
             )}
           </span>
           
-          {/* Hover glow effect */}
           {!rolling && (
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
           )}
