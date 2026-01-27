@@ -1,11 +1,13 @@
 interface OpenButtonProps {
   rolling: boolean;
   onStartRoll: () => void;
+  autoRoll: boolean;
+  onToggleAutoRoll: () => void;
 }
 
-export default function OpenButton({ rolling, onStartRoll }: OpenButtonProps) {
+export default function OpenButton({ rolling, onStartRoll, autoRoll, onToggleAutoRoll }: OpenButtonProps) {
   return (
-    <div className="relative z-20 mt-8 flex justify-center">
+    <div className="relative z-20 mt-8 flex justify-center gap-4">
       <button
         onClick={onStartRoll}
         disabled={rolling}
@@ -42,6 +44,41 @@ export default function OpenButton({ rolling, onStartRoll }: OpenButtonProps) {
         {!rolling && (
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
         )}
+      </button>
+
+      <button
+        onClick={onToggleAutoRoll}
+        className={`group relative px-6 py-4 text-sm font-bold tracking-wide rounded-xl overflow-hidden transition-all duration-300 ${
+          autoRoll ? 'ring-2 ring-amber-400 ring-offset-2 ring-offset-slate-900' : ''
+        }`}
+        style={{
+          background: autoRoll
+            ? 'linear-gradient(135deg, #10b981, #059669, #047857)'
+            : 'linear-gradient(135deg, #6b7280, #4b5563, #374151)',
+          boxShadow: autoRoll
+            ? '0 10px 40px rgba(16, 185, 129, 0.3), 0 0 20px rgba(16, 185, 129, 0.2)'
+            : '0 4px 20px rgba(107, 114, 128, 0.2)'
+        }}
+      >
+        <span className="relative z-10 text-white flex items-center gap-2">
+          {autoRoll ? (
+            <>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              AUTO ON
+            </>
+          ) : (
+            <>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              AUTO
+            </>
+          )}
+        </span>
+        
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
       </button>
     </div>
   );
