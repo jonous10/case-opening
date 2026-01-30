@@ -42,6 +42,8 @@ export default function Inventory({
 
   // For click and hold detection
   const holdTimers = useRef<Record<string, NodeJS.Timeout>>({});
+  // To prevent the initial click from deselecting
+  const justEnteredTradeUp = useRef(false);
 
   const stats = getInventoryStats();
 
@@ -96,6 +98,7 @@ export default function Inventory({
       setInitialTradeItem(itemId);
       setSelectedForTrade([itemId]);
       setTradeUpMode(true);
+      justEnteredTradeUp.current = true;
     }, 500); // 500ms hold
   };
 
@@ -107,20 +110,40 @@ export default function Inventory({
     }
   };
 
+  // Cancel trade-up mode
+  const cancelTradeUp = () => {
+    setTradeUpMode(false);
+    setSelectedForTrade([]);
+    setInitialTradeItem(null);
+  };
+
   // Handle item selection in trade-up mode
   const toggleTradeSelection = (itemId: string) => {
     if (!tradeUpMode) return;
+
+    // Skip the click that triggered trade-up mode
+    if (justEnteredTradeUp.current) {
+      justEnteredTradeUp.current = false;
+      return;
+    }
 
     const item = inventory.find(i => i.id === itemId);
     const initialItem = inventory.find(i => i.id === initialTradeItem);
 
     // Can only select items of same rarity as initial item
     if (item && initialItem && item.rarity.name === initialItem.rarity.name) {
-      setSelectedForTrade(prev =>
-        prev.includes(itemId)
-          ? prev.filter(id => id !== itemId)
-          : [...prev, itemId]
-      );
+      if (selectedForTrade.includes(itemId)) {
+        // Deselecting - check if it's the last one
+        if (selectedForTrade.length === 1) {
+          // Last item - exit trade up mode
+          cancelTradeUp();
+        } else {
+          setSelectedForTrade(prev => prev.filter(id => id !== itemId));
+        }
+      } else {
+        // Selecting
+        setSelectedForTrade(prev => [...prev, itemId]);
+      }
     }
   };
 
@@ -203,12 +226,7 @@ export default function Inventory({
     }, 2000);
   };
 
-  // Cancel trade-up mode
-  const cancelTradeUp = () => {
-    setTradeUpMode(false);
-    setSelectedForTrade([]);
-    setInitialTradeItem(null);
-  };
+
 
   // Check if can trade
   const canTrade = selectedForTrade.length === 10;
@@ -311,15 +329,7 @@ export default function Inventory({
         </div>
 
         {/* Inventory Grid */}
-        <div
-          className="p-6 overflow-y-auto"
-          style={{ maxHeight: '60vh' }}
-          onClick={() => {
-            if (tradeUpMode) {
-              cancelTradeUp();
-            }
-          }}
-        >
+        <div className="p-6 overflow-y-auto" style={{ maxHeight: '60vh' }}>
           {isLoading ? (
             <div className="text-center text-slate-400">Loading inventory...</div>
           ) : inventory.length === 0 ? (
@@ -364,8 +374,7 @@ export default function Inventory({
                             onMouseDown={() => handleMouseDown(item.id)}
                             onMouseUp={() => handleMouseUp(item.id)}
                             onMouseLeave={() => handleMouseUp(item.id)}
-                            onClick={(e) => {
-                              e.stopPropagation();
+                            onClick={() => {
                               if (canSelect) {
                                 toggleTradeSelection(item.id);
                               } else if (!tradeUpMode) {
