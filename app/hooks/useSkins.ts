@@ -1,45 +1,36 @@
+/**
+ * Skins Hook
+ * Fetches all CS2 skins from the API and deduplicates them
+ */
 import { useState, useEffect } from 'react';
 import { Skin } from '../types/Skin';
 
-// Helper function to create skin objects
-function createSkin(
-  name: string,
-  image: string,
-  rarity: { id: string; name: string; color: string },
-  weapon?: { name: string },
-  category?: { id: string; name: string }
-): Skin {
-  return {
-    name,
-    image,
-    rarity,
-    weapon,
-    category
-  };
-}
+const SKINS_API_URL = 'https://raw.githubusercontent.com/ByMykel/CSGO-API/main/public/api/en/skins.json';
 
 export function useSkins() {
   const [skins, setSkins] = useState<Skin[]>([]);
 
   useEffect(() => {
-    fetch(
-      "https://raw.githubusercontent.com/ByMykel/CSGO-API/main/public/api/en/skins.json"
-    )
-      .then((res) => res.json())
-      .then((data) => {
-        const skinObjects = data.map(
-          (s: any) =>
-            createSkin(s.name, s.image, s.rarity, s.weapon ? s.weapon : undefined, s.category)
-        );
+    fetch(SKINS_API_URL)
+      .then(res => res.json())
+      .then(data => {
+        // Map API response to our Skin type
+        const skinObjects: Skin[] = data.map((s: any) => ({
+          name: s.name,
+          image: s.image,
+          rarity: s.rarity,
+          weapon: s.weapon,
+          category: s.category
+        }));
 
-        // Deduplicate skins by name to avoid repetitive items
-        const uniqueSkins = skinObjects.filter((skin: Skin, index: number, self: Skin[]) => 
-          index === self.findIndex((s) => s.name === skin.name)
+        // Remove duplicates by name
+        const uniqueSkins = skinObjects.filter(
+          (skin, index, self) => index === self.findIndex(s => s.name === skin.name)
         );
 
         setSkins(uniqueSkins);
       })
-      .catch((err) => console.error(err));
+      .catch(err => console.error('Failed to fetch skins:', err));
   }, []);
 
   return skins;

@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * CS2 Case Opening Simulator
+ * Main page that ties together all components
+ */
 import React, { useEffect, useState } from "react";
 import CaseReel from "./components/CaseReel";
 import RevealAnimation from "./components/RevealAnimation";
@@ -9,80 +13,47 @@ import { useSkins } from "./hooks/useSkins";
 import { useAudio } from "./hooks/useAudio";
 import { useCaseOpener } from "./hooks/useCaseOpener";
 import { useInventory } from "./hooks/useInventory";
-import { Skin } from "./types/Skin";
+
+// Reel configuration
+const CONFIG = {
+  itemWidth: 220,
+  itemGap: 6,
+  reelLength: 300,
+  minLandingIndex: 280,
+  maxLandingIndex: 295,
+  animationDuration: 7000,
+  animationDelay: 100
+};
 
 export default function CS2CasePage() {
-  // Configuration variables - change these to adjust the case opener
-  const itemWidth = 220;
-  const itemGap = 6;
-  const reelLength = 300;
-  const minLandingIndex = 280;
-  const maxLandingIndex = 295;
-  const animationDuration = 7000;
-  const animationDelay = 100;
-
-  // Custom hooks
+  // Hooks
   const skins = useSkins();
   const { tickAudioRef, openAudioRef, playSound } = useAudio();
   const { addToInventory, inventory, removeFromInventory, getInventoryStats, isLoading } = useInventory();
-  const {
-    reelSkins,
-    rolling,
-    selectedSkin,
-    showReveal,
-    reelRef,
-    lastTickIndexRef,
-    startRoll
-  } = useCaseOpener({
-    itemWidth,
-    itemGap,
-    reelLength,
-    minLandingIndex,
-    maxLandingIndex,
-    animationDuration,
-    animationDelay
-  });
+  const { reelSkins, rolling, selectedSkin, showReveal, reelRef, lastTickIndexRef, startRoll } = useCaseOpener(CONFIG);
 
-  // State for inventory modal
-  const [showInventory, setShowInventory] = React.useState(false);
+  // UI state
+  const [showInventory, setShowInventory] = useState(false);
+  const [autoRoll, setAutoRoll] = useState(false);
+  const [lastAddedSkin, setLastAddedSkin] = useState<string | null>(null);
 
-
-
-
-  // State for auto roll
-  const [autoRoll, setAutoRoll] = React.useState(false);
-
-  // Track the last added skin to prevent duplicates
-  const [lastAddedSkin, setLastAddedSkin] = React.useState<string | null>(null);
-
-  // Add skin to inventory when it's revealed (only once per skin)
+  // Add skin to inventory when revealed
   useEffect(() => {
-    if (selectedSkin && showReveal && !rolling) {
-      // Only add if this is a different skin than the last one added
-      if (lastAddedSkin !== selectedSkin.name) {
-        addToInventory(selectedSkin, 'case');
-        setLastAddedSkin(selectedSkin.name);
-      }
+    if (selectedSkin && showReveal && !rolling && lastAddedSkin !== selectedSkin.name) {
+      addToInventory(selectedSkin, 'case');
+      setLastAddedSkin(selectedSkin.name);
     }
   }, [selectedSkin, showReveal, rolling, addToInventory, lastAddedSkin]);
 
-  // Auto roll functionality
+  // Auto-roll: start new roll after reveal
   useEffect(() => {
     if (autoRoll && selectedSkin && showReveal && !rolling) {
-      // Start a new roll after a short delay when auto-roll is enabled
-      const timer = setTimeout(() => {
-        handleStartRoll();
-      }, 1000); // 1.5 second delay before next roll
-
+      const timer = setTimeout(() => startRoll(skins, playSound, openAudioRef), 1000);
       return () => clearTimeout(timer);
     }
-  }, [autoRoll, selectedSkin, showReveal, rolling]);
+  }, [autoRoll, selectedSkin, showReveal, rolling, skins, playSound, openAudioRef, startRoll]);
 
-  const handleToggleAutoRoll = () => {
-    setAutoRoll(!autoRoll);
-  };
-
-  // Monitor reel position and play tick sounds
+  // Play tick sound as reel spins
   useEffect(() => {
     if (!rolling || !reelRef.current) return;
 
@@ -94,44 +65,37 @@ export default function CS2CasePage() {
 
       const matrix = new DOMMatrix(transform);
       const translateX = Math.abs(matrix.m41);
+      const itemTotalWidth = CONFIG.itemWidth + CONFIG.itemGap;
+      const centerPosition = (reelRef.current.offsetWidth || 800) / 2;
+      const currentIndex = Math.floor((translateX + centerPosition) / itemTotalWidth);
 
-      const containerWidth = reelRef.current.offsetWidth || 800;
-      const centerPosition = containerWidth / 2;
-      const itemTotalWidth = itemWidth + itemGap;
-
-      const currentCenterIndex = Math.floor((translateX + centerPosition) / itemTotalWidth);
-
-      if (currentCenterIndex !== lastTickIndexRef.current && currentCenterIndex >= 0) {
+      if (currentIndex !== lastTickIndexRef.current && currentIndex >= 0) {
         playSound(tickAudioRef);
-        lastTickIndexRef.current = currentCenterIndex;
+        lastTickIndexRef.current = currentIndex;
       }
     }, 16);
 
     return () => clearInterval(interval);
-  }, [rolling, itemWidth, itemGap, playSound, tickAudioRef, lastTickIndexRef]);
+  }, [rolling, playSound, tickAudioRef, lastTickIndexRef, reelRef]);
 
-  const handleStartRoll = () => {
-    startRoll(skins, playSound, openAudioRef);
-  };
+  const handleStartRoll = () => startRoll(skins, playSound, openAudioRef);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col relative overflow-hidden">
       {/* Header */}
-      <div className="relative z-20 border-b border-amber-500/20 bg-gradient-to-b from-slate-900/50 to-slate-950/50 backdrop-blur-sm py-6 shadow-2xl shadow-amber-500/10">
+      <header className="relative z-20 border-b border-amber-500/20 bg-gradient-to-b from-slate-900/50 to-slate-950/50 backdrop-blur-sm py-6">
         <div className="flex items-center justify-center relative max-w-7xl mx-auto px-4">
-          {/* Centered Title */}
           <div className="text-center">
-            <h1 className="text-6xl font-black bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-200 bg-clip-text text-transparent mb-2 tracking-tight"
-              style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+            <h1 className="text-6xl font-black bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-200 bg-clip-text text-transparent mb-2 tracking-tight">
               CASE OPENER
             </h1>
             <p className="text-slate-400 text-sm tracking-widest uppercase">Counter-Strike 2</p>
           </div>
 
-          {/* Inventory Button - Absolute Right */}
+          {/* Inventory button */}
           <button
             onClick={() => setShowInventory(true)}
-            className="absolute right-4 rounded-xl border border-amber-500/30 bg-slate-900/80 backdrop-blur-sm p-3 hover:bg-slate-800 hover:border-amber-500/50 hover:scale-105 transition-all"
+            className="absolute right-4 rounded-xl border border-amber-500/30 bg-slate-900/80 backdrop-blur-sm p-3 hover:bg-slate-800 hover:scale-105 transition-all"
             title="Open Inventory"
           >
             <svg className="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -139,56 +103,39 @@ export default function CS2CasePage() {
             </svg>
           </button>
         </div>
-      </div>
+      </header>
 
-      {/* Background Effects */}
+      {/* Decorative background blobs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 -left-1/4 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl animate-pulse"
-          style={{ animationDuration: '4s' }}></div>
-        <div className="absolute bottom-1/4 -right-1/4 w-96 h-96 bg-yellow-500/5 rounded-full blur-3xl animate-pulse"
-          style={{ animationDuration: '6s', animationDelay: '1s' }}></div>
+        <div className="absolute top-1/4 -left-1/4 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '4s' }} />
+        <div className="absolute bottom-1/4 -right-1/4 w-96 h-96 bg-yellow-500/5 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '6s', animationDelay: '1s' }} />
       </div>
 
-      {/* Main Content */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-8 pb-8">
+      {/* Main content */}
+      <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-8 pb-8">
         <div className="relative w-full max-w-5xl flex-1 flex flex-col items-center justify-center">
           <div className="relative w-full" style={{ minHeight: '400px' }}>
+            {/* Case reel (fades out when revealing) */}
             <div
-              className="transition-all duration-700 ease-out "
+              className="transition-all duration-700 ease-out"
               style={{
                 opacity: showReveal ? 0 : 1,
                 transform: showReveal ? 'scale(0.95) translateY(-20px)' : 'scale(1) translateY(0)',
                 pointerEvents: showReveal ? 'none' : 'auto'
               }}
             >
-              <CaseReel ref={reelRef} reelSkins={reelSkins} itemWidth={itemWidth} itemGap={itemGap} />
+              <CaseReel ref={reelRef} reelSkins={reelSkins} itemWidth={CONFIG.itemWidth} itemGap={CONFIG.itemGap} />
             </div>
 
+            {/* Win reveal animation */}
             <RevealAnimation selectedSkin={selectedSkin} showReveal={showReveal} />
           </div>
 
+          {/* Last drop text */}
           {!showReveal && selectedSkin && !rolling && (
-            <div className="mt-8 text-center fade-in-text">
-              <style jsx>{`
-                .fade-in-text {
-                  opacity: 0;
-                  animation: fadeIn 0.5s ease-out 0.3s forwards;
-                }
-                @keyframes fadeIn {
-                  from { 
-                    opacity: 0; 
-                    transform: translateY(10px); 
-                  }
-                  to { 
-                    opacity: 1; 
-                    transform: translateY(0); 
-                  }
-                }
-              `}</style>
-              <p className="text-slate-500 text-sm">
-                Last drop: <span style={{ color: selectedSkin.rarity.color }} className="font-semibold">{selectedSkin.name}</span>
-              </p>
-            </div>
+            <p className="mt-8 text-slate-500 text-sm animate-fade-in">
+              Last drop: <span style={{ color: selectedSkin.rarity.color }} className="font-semibold">{selectedSkin.name}</span>
+            </p>
           )}
         </div>
 
@@ -196,10 +143,11 @@ export default function CS2CasePage() {
           rolling={rolling}
           onStartRoll={handleStartRoll}
           autoRoll={autoRoll}
-          onToggleAutoRoll={handleToggleAutoRoll}
+          onToggleAutoRoll={() => setAutoRoll(!autoRoll)}
         />
-      </div>
+      </main>
 
+      {/* Inventory modal */}
       <Inventory
         isOpen={showInventory}
         onClose={() => setShowInventory(false)}

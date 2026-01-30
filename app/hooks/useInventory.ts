@@ -1,11 +1,18 @@
-import { useState, useEffect } from 'react';
+/**
+ * Inventory Hook
+ * Manages the player's skin inventory with localStorage persistence
+ */
+import { useState, useEffect, useCallback } from 'react';
 import { Skin } from '../types/Skin';
 
-interface InventoryItem extends Skin {
+// Inventory item extends Skin with additional metadata
+export interface InventoryItem extends Skin {
   id: string;
   acquiredAt: Date;
   source: 'case' | 'trade' | 'purchase';
 }
+
+const STORAGE_KEY = 'cs2_inventory';
 
 export function useInventory() {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
@@ -13,70 +20,64 @@ export function useInventory() {
 
   // Load inventory from localStorage on mount
   useEffect(() => {
-    const savedInventory = localStorage.getItem('cs2_inventory');
-    if (savedInventory) {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
       try {
-        const parsed = JSON.parse(savedInventory);
+        const parsed = JSON.parse(saved);
+        // Convert date strings back to Date objects
         setInventory(parsed.map((item: any) => ({
           ...item,
           acquiredAt: new Date(item.acquiredAt)
         })));
-      } catch (error) {
-        console.error('Failed to load inventory:', error);
+      } catch {
+        console.error('Failed to load inventory');
       }
     }
     setIsLoading(false);
   }, []);
 
-  // Save inventory to localStorage whenever it changes
+  // Save to localStorage whenever inventory changes
   useEffect(() => {
     if (!isLoading) {
-      localStorage.setItem('cs2_inventory', JSON.stringify(inventory));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(inventory));
     }
   }, [inventory, isLoading]);
 
-  const addToInventory = (skin: Skin, source: InventoryItem['source'] = 'case') => {
+  // Add a skin to inventory
+  const addToInventory = useCallback((skin: Skin, source: InventoryItem['source'] = 'case') => {
     const newItem: InventoryItem = {
       ...skin,
-      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
       acquiredAt: new Date(),
       source
     };
-    
     setInventory(prev => [...prev, newItem]);
     return newItem;
-  };
+  }, []);
 
-  const removeFromInventory = (itemId: string) => {
+  // Remove a skin by ID
+  const removeFromInventory = useCallback((itemId: string) => {
     setInventory(prev => prev.filter(item => item.id !== itemId));
-  };
+  }, []);
 
-  const clearInventory = () => {
-    setInventory([]);
-    localStorage.removeItem('cs2_inventory');
-  };
-
-  const getInventoryStats = () => {
-    const stats = inventory.reduce((acc, item) => {
-      acc.total++;
-      acc.byRarity[item.rarity.name] = (acc.byRarity[item.rarity.name] || 0) + 1;
-      acc.byCategory[item.category?.name || 'Unknown'] = (acc.byCategory[item.category?.name || 'Unknown'] || 0) + 1;
-      return acc;
-    }, {
-      total: 0,
-      byRarity: {} as Record<string, number>,
-      byCategory: {} as Record<string, number>
-    });
-
-    return stats;
-  };
+  // Get inventory statistics
+  const getInventoryStats = useCallback(() => {
+    return inventory.reduce(
+      (acc, item) => {
+        acc.total++;
+        acc.byRarity[item.rarity.name] = (acc.byRarity[item.rarity.name] || 0) + 1;
+        acc.byCategory[item.category?.name || 'Unknown'] = (acc.byCategory[item.category?.name || 'Unknown'] || 0) + 1;
+        return acc;
+      },
+      { total: 0, byRarity: {} as Record<string, number>, byCategory: {} as Record<string, number> }
+    );
+  }, [inventory]);
 
   return {
     inventory,
     isLoading,
     addToInventory,
     removeFromInventory,
-    clearInventory,
     getInventoryStats
   };
 }
