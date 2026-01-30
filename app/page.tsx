@@ -45,7 +45,7 @@ export default function CS2CasePage() {
 
   // State for inventory modal
   const [showInventory, setShowInventory] = React.useState(false);
-  
+
 
 
 
@@ -73,7 +73,7 @@ export default function CS2CasePage() {
       const timer = setTimeout(() => {
         handleStartRoll();
       }, 1000); // 1.5 second delay before next roll
-      
+
       return () => clearTimeout(timer);
     }
   }, [autoRoll, selectedSkin, showReveal, rolling]);
@@ -98,7 +98,7 @@ export default function CS2CasePage() {
       const containerWidth = reelRef.current.offsetWidth || 800;
       const centerPosition = containerWidth / 2;
       const itemTotalWidth = itemWidth + itemGap;
-      
+
       const currentCenterIndex = Math.floor((translateX + centerPosition) / itemTotalWidth);
 
       if (currentCenterIndex !== lastTickIndexRef.current && currentCenterIndex >= 0) {
@@ -117,18 +117,21 @@ export default function CS2CasePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col relative overflow-hidden">
       {/* Header */}
-      <div className="relative z-20 p-2 relative overflow-hidden border-b border-amber-500/20 bg-gradient-to-b from-slate-900/50 to-slate-950/50 backdrop-blur-sm p-4 shadow-2xl shadow-amber-500/10 transition-transform">
-        <div className="flex justify-center items-start max-w-7xl mx-auto relative">
-          <div className="flex-1 text-center">
-            <h1 className="text-6xl font-black bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-200 bg-clip-text text-transparent mb-3 tracking-tight"
-                style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+      <div className="relative z-20 border-b border-amber-500/20 bg-gradient-to-b from-slate-900/50 to-slate-950/50 backdrop-blur-sm py-6 shadow-2xl shadow-amber-500/10">
+        <div className="flex items-center justify-center relative max-w-7xl mx-auto px-4">
+          {/* Centered Title */}
+          <div className="text-center">
+            <h1 className="text-6xl font-black bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-200 bg-clip-text text-transparent mb-2 tracking-tight"
+              style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
               CASE OPENER
             </h1>
             <p className="text-slate-400 text-sm tracking-widest uppercase">Counter-Strike 2</p>
           </div>
+
+          {/* Inventory Button - Absolute Right */}
           <button
             onClick={() => setShowInventory(true)}
-            className="absolute top-0 right-0 m-4 relative overflow-hidden rounded-2xl border border-amber-500/20 bg-gradient-to-b from-slate-900/50 to-slate-950/50 backdrop-blur-sm p-4 shadow-2xl shadow-amber-500/10 hover:scale-105 transition-transform"
+            className="absolute right-4 rounded-xl border border-amber-500/30 bg-slate-900/80 backdrop-blur-sm p-3 hover:bg-slate-800 hover:border-amber-500/50 hover:scale-105 transition-all"
             title="Open Inventory"
           >
             <svg className="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -140,17 +143,17 @@ export default function CS2CasePage() {
 
       {/* Background Effects */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 -left-1/4 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl animate-pulse" 
-             style={{ animationDuration: '4s' }}></div>
-        <div className="absolute bottom-1/4 -right-1/4 w-96 h-96 bg-yellow-500/5 rounded-full blur-3xl animate-pulse" 
-             style={{ animationDuration: '6s', animationDelay: '1s' }}></div>
+        <div className="absolute top-1/4 -left-1/4 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl animate-pulse"
+          style={{ animationDuration: '4s' }}></div>
+        <div className="absolute bottom-1/4 -right-1/4 w-96 h-96 bg-yellow-500/5 rounded-full blur-3xl animate-pulse"
+          style={{ animationDuration: '6s', animationDelay: '1s' }}></div>
       </div>
 
       {/* Main Content */}
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-8 pb-8">
         <div className="relative w-full max-w-5xl flex-1 flex flex-col items-center justify-center">
           <div className="relative w-full" style={{ minHeight: '400px' }}>
-            <div 
+            <div
               className="transition-all duration-700 ease-out "
               style={{
                 opacity: showReveal ? 0 : 1,
@@ -158,7 +161,7 @@ export default function CS2CasePage() {
                 pointerEvents: showReveal ? 'none' : 'auto'
               }}
             >
-              <CaseReel ref={reelRef} reelSkins={reelSkins} itemWidth={itemWidth} itemGap={itemGap}/>
+              <CaseReel ref={reelRef} reelSkins={reelSkins} itemWidth={itemWidth} itemGap={itemGap} />
             </div>
 
             <RevealAnimation selectedSkin={selectedSkin} showReveal={showReveal} />
@@ -189,17 +192,17 @@ export default function CS2CasePage() {
           )}
         </div>
 
-        <OpenButton 
-          rolling={rolling} 
-          onStartRoll={handleStartRoll} 
+        <OpenButton
+          rolling={rolling}
+          onStartRoll={handleStartRoll}
           autoRoll={autoRoll}
           onToggleAutoRoll={handleToggleAutoRoll}
         />
       </div>
-      
-      <Inventory 
-        isOpen={showInventory} 
-        onClose={() => setShowInventory(false)} 
+
+      <Inventory
+        isOpen={showInventory}
+        onClose={() => setShowInventory(false)}
         inventory={inventory}
         removeFromInventory={removeFromInventory}
         addToInventory={addToInventory}

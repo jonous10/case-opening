@@ -44,6 +44,8 @@ export default function Inventory({
   const holdTimers = useRef<Record<string, NodeJS.Timeout>>({});
   // To prevent the initial click from deselecting
   const justEnteredTradeUp = useRef(false);
+  // For drag-to-select
+  const [isDragging, setIsDragging] = useState(false);
 
   const stats = getInventoryStats();
 
@@ -99,10 +101,11 @@ export default function Inventory({
       setSelectedForTrade([itemId]);
       setTradeUpMode(true);
       justEnteredTradeUp.current = true;
+      setIsDragging(true);
     }, 500); // 500ms hold
   };
 
-  // Handle mouse up - clear timer
+  // Handle mouse up - clear timer (dragging stops via global handler)
   const handleMouseUp = (itemId: string) => {
     if (holdTimers.current[itemId]) {
       clearTimeout(holdTimers.current[itemId]);
@@ -110,11 +113,46 @@ export default function Inventory({
     }
   };
 
+  // Handle mouse leave - only clear timer (don't stop dragging)
+  const handleItemMouseLeave = (itemId: string) => {
+    if (holdTimers.current[itemId]) {
+      clearTimeout(holdTimers.current[itemId]);
+      delete holdTimers.current[itemId];
+    }
+  };
+
+  // Handle global mouse up to stop dragging
+  const handleGlobalMouseUp = () => {
+    setIsDragging(false);
+    // Also clear any pending timers
+    Object.keys(holdTimers.current).forEach(id => {
+      clearTimeout(holdTimers.current[id]);
+      delete holdTimers.current[id];
+    });
+  };
+
   // Cancel trade-up mode
   const cancelTradeUp = () => {
     setTradeUpMode(false);
     setSelectedForTrade([]);
     setInitialTradeItem(null);
+    setIsDragging(false);
+  };
+
+  // Handle mouse enter for drag-to-select
+  const handleMouseEnter = (itemId: string) => {
+    if (!tradeUpMode || !isDragging || isTrading) return;
+
+    const item = inventory.find(i => i.id === itemId);
+    const initItem = inventory.find(i => i.id === initialTradeItem);
+
+    // Can only select items of same rarity as initial item
+    if (item && initItem && item.rarity.name === initItem.rarity.name) {
+      // Only add if not already selected
+      if (!selectedForTrade.includes(itemId)) {
+        setSelectedForTrade(prev => [...prev, itemId]);
+      }
+    }
   };
 
   // Handle item selection in trade-up mode
@@ -236,7 +274,7 @@ export default function Inventory({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onMouseUp={handleGlobalMouseUp}>
       <div className="bg-slate-900 rounded-2xl border border-slate-700 max-w-6xl w-full max-h-[90vh] overflow-hidden">
         {/* Header */}
         <div className="p-6 border-b border-slate-700">
@@ -367,13 +405,14 @@ export default function Inventory({
                         return (
                           <div
                             key={item.id}
-                            className={`relative group cursor-pointer transition-all duration-300 ${isSelected ? 'scale-110 ring-2 ring-amber-400 rounded-lg' : ''
+                            className={`relative group cursor-pointer transition-all duration-300 select-none ${isSelected ? 'scale-110 ring-2 ring-amber-400 rounded-lg' : ''
                               } ${isInitialItem ? 'ring-2 ring-green-400 rounded-lg' : ''}
                             ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}
                             ${tradeUpMode && !isSameRarity && !isSelected ? 'opacity-30' : ''}`}
                             onMouseDown={() => handleMouseDown(item.id)}
                             onMouseUp={() => handleMouseUp(item.id)}
-                            onMouseLeave={() => handleMouseUp(item.id)}
+                            onMouseLeave={() => handleItemMouseLeave(item.id)}
+                            onMouseEnter={() => handleMouseEnter(item.id)}
                             onClick={() => {
                               if (canSelect) {
                                 toggleTradeSelection(item.id);
@@ -392,7 +431,8 @@ export default function Inventory({
                               <img
                                 src={item.image}
                                 alt={item.name}
-                                className="w-full h-full object-contain p-2"
+                                className="w-full h-full object-contain p-2 pointer-events-none"
+                                draggable={false}
                               />
 
                               {/* Trade selection indicators */}
