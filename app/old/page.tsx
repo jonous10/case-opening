@@ -19,13 +19,13 @@ class Skin {
   weapon?: { name: string };
 
   constructor(
-    name: string, 
-    image: string, 
+    name: string,
+    image: string,
     rarity: {
       id: string,
       name: string,
       color: string
-    }, 
+    },
     weapon?: { name: string }
   ) {
     this.name = name;
@@ -111,43 +111,43 @@ export default function Home() {
     <div className="flex min-h-screen items-center justify-center bg-linear-to-b from-black via-gray-900 to-black">
       <main className="flex flex-col items-center justify-center gap-8 py-12 px-4">
         <h1 className="text-5xl font-bold text-white text-center">CS2 Case Opening</h1>
-        
+
         <div
-            className="w-140 h-140 rounded-lg border-4 border-gray-700 flex items-center justify-center overflow-hidden relative shrink-0"
-            style={openedSkin ? { backgroundColor: openedSkin.getBackgroundColor() } : {}}
-          >
-            {/* Skin Image */}
-            {openedSkin?.image ? (
-              <img
-                src={openedSkin.image}
-                alt={openedSkin.getDisplayName()}
-                className="w-180 h-180 object-contain absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
-              />
-            ) : (
-              <div className="text-gray-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                No image
-              </div>
-            )}
+          className="w-140 h-140 rounded-lg border-4 border-gray-700 flex items-center justify-center overflow-hidden relative shrink-0"
+          style={openedSkin ? { backgroundColor: openedSkin.getBackgroundColor() } : {}}
+        >
+          {/* Skin Image */}
+          {openedSkin?.image ? (
+            <img
+              src={openedSkin.image}
+              alt={openedSkin.getDisplayName()}
+              className="w-180 h-180 object-contain absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+            />
+          ) : (
+            <div className="text-gray-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+              No image
+            </div>
+          )}
 
-            {/* Skin Info */}
-            {openedSkin && (
-              <div className="absolute bottom-4 w-full text-center px-2">
-                <p
-                  className="text-lg font-semibold truncate"
-                  style={{ color: openedSkin.getRarityColor() }}
-                >
-                  {openedSkin.getDisplayName()}
-                </p>
-                <p className="text-sm text-gray-400">{openedSkin.rarity.name}</p>
-              </div>
-            )}
+          {/* Skin Info */}
+          {openedSkin && (
+            <div className="absolute bottom-4 w-full text-center px-2">
+              <p
+                className="text-lg font-semibold truncate"
+                style={{ color: openedSkin.getRarityColor() }}
+              >
+                {openedSkin.getDisplayName()}
+              </p>
+              <p className="text-sm text-gray-400">{openedSkin.rarity.name}</p>
+            </div>
+          )}
 
-            {!openedSkin && (
-              <div className="absolute bottom-4 w-full text-center text-gray-500 px-2">
-                Click "Open Case" to reveal a random skin!
-              </div>
-            )}
-          </div>
+          {!openedSkin && (
+            <div className="absolute bottom-4 w-full text-center text-gray-500 px-2">
+              Click "Open Case" to reveal a random skin!
+            </div>
+          )}
+        </div>
 
 
         <button
