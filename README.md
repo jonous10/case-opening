@@ -1,9 +1,5 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-## VERY IMPORTANT
-
-When doing npm run dev. The homepage is at localhost:3000 and the page with the more developed sliding action is at localhost:3000/slider
-
 
 ## Getting Started
 
